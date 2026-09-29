@@ -4,6 +4,9 @@ set -euo pipefail
 [[ $# -eq 1 ]] || { echo "usage: $0 <destination>" >&2; exit 2; }
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DESTINATION="$1"
+if command -v cygpath >/dev/null && [[ "${DESTINATION}" =~ ^[[:alpha:]]: ]]; then
+  DESTINATION="$(cygpath -u "${DESTINATION}")"
+fi
 LOCK="${ROOT}/config/source-lock.json"
 command -v curl >/dev/null
 command -v gpg >/dev/null
