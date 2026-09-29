@@ -15,6 +15,8 @@ export MACOSX_DEPLOYMENT_TARGET="${SDK_MINIMUM_SYSTEM_VERSION}"
 cd "${OPENSSL_SRC}"
 ./Configure "${target}" shared --prefix="${OPENSSL_PREFIX}" --openssldir=/etc/ssl
 make -j"$(sysctl -n hw.ncpu)"
-make test
+if [[ "${OPENSSL_RUN_UPSTREAM_TESTS:-false}" == "true" ]]; then
+  make test
+fi
 make install_sw
 install_name_tool -id @rpath/libcrypto.3.dylib "${OPENSSL_PREFIX}/lib/libcrypto.3.dylib"

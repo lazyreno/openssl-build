@@ -29,7 +29,10 @@ def find_dumpbin():
         "-property",
         "installationPath",
     ).strip()
-    candidates = list((Path(installation) / "VC/Tools/MSVC").glob("*/bin/Hostx64/x64/dumpbin.exe"))
+    target_architecture = "arm64" if args.arch == "arm64" else "x64"
+    candidates = list(
+        (Path(installation) / "VC/Tools/MSVC").glob(f"*/bin/*/{target_architecture}/dumpbin.exe")
+    )
     if not candidates:
         raise SystemExit("dumpbin.exe was not found in the Visual Studio installation")
     return candidates[0]
