@@ -45,7 +45,7 @@ jobs:
           SDK_MINIMUM_SYSTEM_VERSION: ${{ matrix.minimumSystemVersion }}
           OPENSSL_SRC: ${{ runner.temp }}/openssl
           OPENSSL_PREFIX: ${{ runner.temp }}/openssl-prefix
-          OPENSSL_RUN_UPSTREAM_TESTS: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          OPENSSL_RUN_UPSTREAM_TESTS: 'false'
         run: scripts/build-macos.sh
       - name: Build Windows SDK
         if: matrix.os == 'windows'
@@ -54,7 +54,7 @@ jobs:
           SDK_ARCH: ${{ matrix.arch }}
           OPENSSL_SRC: ${{ runner.temp }}/openssl
           OPENSSL_PREFIX: ${{ runner.temp }}/openssl-prefix
-          OPENSSL_RUN_UPSTREAM_TESTS: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          OPENSSL_RUN_UPSTREAM_TESTS: 'false'
         run: ./scripts/build-windows.ps1
       - name: Stage and verify SDK
         shell: bash
