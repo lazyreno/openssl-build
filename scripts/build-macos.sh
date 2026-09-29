@@ -13,7 +13,11 @@ esac
 
 export MACOSX_DEPLOYMENT_TARGET="${SDK_MINIMUM_SYSTEM_VERSION}"
 cd "${OPENSSL_SRC}"
-./Configure "${target}" shared --prefix="${OPENSSL_PREFIX}" --openssldir=/etc/ssl
+configure_options=("${target}" shared --prefix="${OPENSSL_PREFIX}" --openssldir=/etc/ssl)
+if [[ "${OPENSSL_RUN_UPSTREAM_TESTS:-false}" != "true" ]]; then
+  configure_options+=(no-tests)
+fi
+./Configure "${configure_options[@]}"
 make -j"$(sysctl -n hw.ncpu)"
 if [[ "${OPENSSL_RUN_UPSTREAM_TESTS:-false}" == "true" ]]; then
   make test

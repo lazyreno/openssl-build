@@ -19,10 +19,14 @@ $devCmd = Join-Path $installation 'Common7\Tools\VsDevCmd.bat'
 if (!(Test-Path -LiteralPath $devCmd)) { throw "VsDevCmd.bat was not found: $devCmd" }
 $arch = if ($env:SDK_ARCH -eq 'arm64') { 'arm64' } else { 'x64' }
 $hostArch = $arch
+$configureOptions = "perl Configure $target shared --prefix=`"$($env:OPENSSL_PREFIX)`" --openssldir=C:\\OpenSSL"
+if ($env:OPENSSL_RUN_UPSTREAM_TESTS -ne 'true') {
+    $configureOptions += ' no-tests'
+}
 $command = @(
     "call `"$devCmd`" -arch=$arch -host_arch=$hostArch",
     "cd /d `"$($env:OPENSSL_SRC)`"",
-    "perl Configure $target shared --prefix=`"$($env:OPENSSL_PREFIX)`" --openssldir=C:\\OpenSSL",
+    $configureOptions,
     'nmake'
 )
 if ($env:OPENSSL_RUN_UPSTREAM_TESTS -eq 'true') {
