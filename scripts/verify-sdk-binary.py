@@ -37,12 +37,12 @@ def find_dumpbin():
 
 parser = argparse.ArgumentParser()
 parser.add_argument("root", type=Path)
-parser.add_argument("--platform", required=True, choices=("macos", "windows"))
+parser.add_argument("--os", required=True, choices=("macos", "windows"))
 parser.add_argument("--arch", required=True, choices=("arm64", "x64"))
 args = parser.parse_args()
 manifest = json.loads((args.root / "manifest.json").read_text(encoding="utf-8"))
 
-if args.platform == "macos":
+if args.os == "macos":
     library = args.root / "lib/libcrypto.3.dylib"
     expected_arch = "x86_64" if args.arch == "x64" else "arm64"
     subprocess.run(["lipo", str(library), "-verify_arch", expected_arch], check=True)
@@ -66,6 +66,6 @@ else:
     if actual_version > expected_version:
         raise SystemExit(f"libcrypto PE subsystem version exceeds the support policy: {library}")
 
-if manifest["os"] != args.platform or manifest["arch"] != args.arch:
+if manifest["os"] != args.os or manifest["arch"] != args.arch:
     raise SystemExit("manifest target mismatch")
-print(f"SDK binary valid: {args.platform}-{args.arch}")
+print(f"SDK binary valid: {args.os}-{args.arch}")

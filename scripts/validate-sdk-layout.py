@@ -7,7 +7,7 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("root", type=Path)
-parser.add_argument("--platform", required=True, choices=("macos", "windows"))
+parser.add_argument("--os", required=True, choices=("macos", "windows"))
 parser.add_argument("--arch", required=True, choices=("arm64", "x64"))
 args = parser.parse_args()
 
@@ -21,7 +21,7 @@ required = [
     "manifest.json",
 ]
 missing = [item for item in required if not (args.root / item).exists()]
-if args.platform == "macos":
+if args.os == "macos":
     runtime = args.root / "lib/libcrypto.3.dylib"
     if not runtime.is_file():
         missing.append("lib/libcrypto.3.dylib")
@@ -39,17 +39,17 @@ matrix = json.loads(
     (Path(__file__).resolve().parents[1] / "config/platform-matrix.json").read_text(encoding="utf-8")
 )["platforms"]
 expected = next(
-    (entry for entry in matrix if entry["os"] == args.platform and entry["arch"] == args.arch),
+    (entry for entry in matrix if entry["os"] == args.os and entry["arch"] == args.arch),
     None,
 )
 if expected is None:
     raise SystemExit("unsupported platform target")
 if manifest.get("schemaVersion") != 2:
     raise SystemExit("manifest schemaVersion must be 2")
-if manifest.get("os") != args.platform or manifest.get("arch") != args.arch:
+if manifest.get("os") != args.os or manifest.get("arch") != args.arch:
     raise SystemExit("manifest OS or architecture mismatch")
 if manifest.get("minimumSystemVersion") != expected["minimumSystemVersion"]:
     raise SystemExit("manifest minimumSystemVersion mismatch")
 if manifest.get("licenseMode") != "Apache-2.0":
     raise SystemExit("manifest licenseMode must be Apache-2.0")
-print(f"SDK layout valid: {args.platform}-{args.arch}")
+print(f"SDK layout valid: {args.os}-{args.arch}")

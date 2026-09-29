@@ -21,11 +21,11 @@ parser.add_argument("--release-tag", required=True)
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 sdk = json.loads((root / "config/sdk-version.json").read_text(encoding="utf-8"))
-source = json.loads((root / "config/source-lock.json").read_text(encoding="utf-8"))
+source_lock = json.loads((root / "config/source-lock.json").read_text(encoding="utf-8"))
 platforms = json.loads((root / "config/platform-matrix.json").read_text(encoding="utf-8"))["platforms"]
 artifacts = []
 for platform in platforms:
-    name = f"openssl-sdk-{platform['key']}.zip"
+    name = f"openssl-sdk-{platform['os']}-{platform['arch']}.zip"
     archive = args.release_assets / name
     checksum = args.release_assets / f"{name}.sha256"
     if not archive.exists() or not checksum.exists():
@@ -48,7 +48,7 @@ args.output.write_text(json.dumps({
     "name": "openssl-build",
     "sdkVersion": sdk["sdkVersion"],
     "opensslVersion": sdk["opensslVersion"],
-    "sourceArchiveSha256": source["sourceArchiveSha256"],
+    "sourceArchiveSha256": source_lock["sourceArchiveSha256"],
     "releaseTag": args.release_tag,
     "licenseMode": sdk["licenseMode"],
     "artifacts": artifacts,

@@ -56,9 +56,9 @@ jobs:
         env:
           SDK_MINIMUM_SYSTEM_VERSION: ${{ matrix.minimumSystemVersion }}
         run: |
-          scripts/stage-sdk.sh --install "$RUNNER_TEMP/openssl-prefix" --output "$RUNNER_TEMP/sdk" --platform '${{ matrix.os }}' --arch '${{ matrix.arch }}'
-          python3 scripts/validate-sdk-layout.py "$RUNNER_TEMP/sdk" --platform '${{ matrix.os }}' --arch '${{ matrix.arch }}'
-          python3 scripts/verify-sdk-binary.py "$RUNNER_TEMP/sdk" --platform '${{ matrix.os }}' --arch '${{ matrix.arch }}'
+          scripts/stage-sdk.sh --install "$RUNNER_TEMP/openssl-prefix" --output "$RUNNER_TEMP/sdk" --os '${{ matrix.os }}' --arch '${{ matrix.arch }}'
+          python3 scripts/validate-sdk-layout.py "$RUNNER_TEMP/sdk" --os '${{ matrix.os }}' --arch '${{ matrix.arch }}'
+          python3 scripts/verify-sdk-binary.py "$RUNNER_TEMP/sdk" --os '${{ matrix.os }}' --arch '${{ matrix.arch }}'
       - name: Smoke-test Windows libcrypto
         if: matrix.os == 'windows'
         shell: pwsh
@@ -82,7 +82,7 @@ jobs:
           '@ | python -
       - uses: actions/upload-artifact@v4
         with:
-          name: openssl-sdk-${{ matrix.key }}
+          name: openssl-sdk-${{ matrix.os }}-${{ matrix.arch }}
           path: ${{ runner.temp }}/sdk
 
   publish-release:

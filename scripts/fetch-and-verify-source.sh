@@ -16,6 +16,22 @@ print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])
 PY
 }
 
+verify_sha256() {
+  python3 - "$1" "$2" <<'PY'
+import hashlib
+import sys
+
+expected, path = sys.argv[1:]
+digest = hashlib.sha256()
+with open(path, "rb") as source:
+    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+        digest.update(chunk)
+actual = digest.hexdigest()
+if actual != expected:
+    raise SystemExit(f"SHA-256 mismatch for {path}: expected {expected}, got {actual}")
+PY
+}
+
 ARCHIVE_URL="$(read_lock sourceArchiveUrl)"
 ARCHIVE_SHA256="$(read_lock sourceArchiveSha256)"
 SIGNATURE_URL="$(read_lock sourceSignatureUrl)"
@@ -25,7 +41,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
 curl --fail --location --retry 3 --output "${WORK}/source.tar.gz" "${ARCHIVE_URL}"
-printf '%s  %s\n' "${ARCHIVE_SHA256}" "${WORK}/source.tar.gz" | shasum -a 256 -c -
+verify_sha256 "${ARCHIVE_SHA256}" "${WORK}/source.tar.gz"
 curl --fail --location --retry 3 --output "${WORK}/source.tar.gz.asc" "${SIGNATURE_URL}"
 curl --fail --location --retry 3 --output "${WORK}/pubkeys.asc" "${KEY_URL}"
 export GNUPGHOME="${WORK}/gnupg"

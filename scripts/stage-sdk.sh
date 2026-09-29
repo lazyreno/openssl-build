@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage() { echo "usage: $0 --install <prefix> --output <dir> --platform <macos|windows> --arch <arm64|x64>" >&2; exit 2; }
-INSTALL=""; OUTPUT=""; PLATFORM=""; ARCH=""
+usage() { echo "usage: $0 --install <prefix> --output <dir> --os <macos|windows> --arch <arm64|x64>" >&2; exit 2; }
+INSTALL_PREFIX=""; STAGE_ROOT=""; SDK_OS=""; SDK_ARCH=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --install) INSTALL="$2"; shift 2 ;;
-    --output) OUTPUT="$2"; shift 2 ;;
-    --platform) PLATFORM="$2"; shift 2 ;;
-    --arch) ARCH="$2"; shift 2 ;;
+    --install) INSTALL_PREFIX="$2"; shift 2 ;;
+    --output) STAGE_ROOT="$2"; shift 2 ;;
+    --os) SDK_OS="$2"; shift 2 ;;
+    --arch) SDK_ARCH="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
-[[ -n "${INSTALL}" && -n "${OUTPUT}" && -n "${PLATFORM}" && -n "${ARCH}" ]] || usage
+[[ -n "${INSTALL_PREFIX}" && -n "${STAGE_ROOT}" && -n "${SDK_OS}" && -n "${SDK_ARCH}" ]] || usage
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-read_config() {
+read_config_value() {
   python3 - "${ROOT}/config/$1" "$2" <<'PY'
 import json
 import sys
 print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])
 PY
 }
-SDK_VERSION="$(read_config sdk-version.json sdkVersion)"
-OPENSSL_VERSION="$(read_config sdk-version.json opensslVersion)"
-SOURCE_SHA256="$(read_config source-lock.json sourceArchiveSha256)"
-MINIMUM_SYSTEM_VERSION="$(python3 - "${ROOT}/config/platform-matrix.json" "${PLATFORM}" "${ARCH}" <<'PY'
+SDK_VERSION="$(read_config_value sdk-version.json sdkVersion)"
+OPENSSL_VERSION="$(read_config_value sdk-version.json opensslVersion)"
+SOURCE_SHA256="$(read_config_value source-lock.json sourceArchiveSha256)"
+MINIMUM_SYSTEM_VERSION="$(python3 - "${ROOT}/config/platform-matrix.json" "${SDK_OS}" "${SDK_ARCH}" <<'PY'
 import json
 import sys
 for value in json.load(open(sys.argv[1], encoding="utf-8"))["platforms"]:
@@ -40,32 +40,32 @@ if [[ -n "${SDK_MINIMUM_SYSTEM_VERSION:-}" && "${SDK_MINIMUM_SYSTEM_VERSION}" !=
   exit 1
 fi
 
-rm -rf "${OUTPUT}"
-mkdir -p "${OUTPUT}/include" "${OUTPUT}/lib" "${OUTPUT}/bin" "${OUTPUT}/cmake" "${OUTPUT}/licenses"
-cp -R "${INSTALL}/include/openssl" "${OUTPUT}/include/"
-cp "${ROOT}/LICENSE" "${OUTPUT}/licenses/Apache-2.0.txt"
+[[ ! -e "${STAGE_ROOT}" ]] || { echo "staging output must not exist: ${STAGE_ROOT}" >&2; exit 1; }
+mkdir -p "${STAGE_ROOT}/include" "${STAGE_ROOT}/lib" "${STAGE_ROOT}/bin" "${STAGE_ROOT}/cmake" "${STAGE_ROOT}/licenses"
+cp -R "${INSTALL_PREFIX}/include/openssl" "${STAGE_ROOT}/include/"
+cp "${ROOT}/LICENSE" "${STAGE_ROOT}/licenses/Apache-2.0.txt"
 
-if [[ "${PLATFORM}" == "macos" ]]; then
-  cp "${INSTALL}/lib/libcrypto.3.dylib" "${OUTPUT}/lib/"
+if [[ "${SDK_OS}" == "macos" ]]; then
+  cp "${INSTALL_PREFIX}/lib/libcrypto.3.dylib" "${STAGE_ROOT}/lib/"
   RUNTIME_FILE="libcrypto.3.dylib"
   CMAKE_LOCATION='${_openssl_root}/lib/libcrypto.3.dylib'
   CMAKE_IMPLIB=''
-elif [[ "${PLATFORM}" == "windows" ]]; then
-  cp "${INSTALL}/lib/libcrypto.lib" "${OUTPUT}/lib/"
-  runtime="$(find "${INSTALL}/bin" -maxdepth 1 -type f -name 'libcrypto-*.dll' -print -quit)"
+elif [[ "${SDK_OS}" == "windows" ]]; then
+  cp "${INSTALL_PREFIX}/lib/libcrypto.lib" "${STAGE_ROOT}/lib/"
+  runtime="$(find "${INSTALL_PREFIX}/bin" -maxdepth 1 -type f -name 'libcrypto-*.dll' -print -quit)"
   [[ -n "${runtime}" ]] || { echo "OpenSSL runtime DLL is missing" >&2; exit 1; }
-  cp "${runtime}" "${OUTPUT}/bin/"
+  cp "${runtime}" "${STAGE_ROOT}/bin/"
   RUNTIME_FILE="$(basename "${runtime}")"
   CMAKE_LOCATION='${_openssl_root}/bin/'"${RUNTIME_FILE}"
   CMAKE_IMPLIB='    IMPORTED_IMPLIB "${_openssl_root}/lib/libcrypto.lib"'
 else
-  echo "unsupported platform: ${PLATFORM}" >&2; exit 2
+  echo "unsupported OS: ${SDK_OS}" >&2; exit 2
 fi
 
-cat > "${OUTPUT}/manifest.json" <<JSON
-{"schemaVersion":2,"sdkVersion":"${SDK_VERSION}","opensslVersion":"${OPENSSL_VERSION}","sourceArchiveSha256":"${SOURCE_SHA256}","os":"${PLATFORM}","arch":"${ARCH}","minimumSystemVersion":"${MINIMUM_SYSTEM_VERSION}","licenseMode":"Apache-2.0","runtimeFile":"${RUNTIME_FILE}"}
+cat > "${STAGE_ROOT}/manifest.json" <<JSON
+{"schemaVersion":2,"sdkVersion":"${SDK_VERSION}","opensslVersion":"${OPENSSL_VERSION}","sourceArchiveSha256":"${SOURCE_SHA256}","os":"${SDK_OS}","arch":"${SDK_ARCH}","minimumSystemVersion":"${MINIMUM_SYSTEM_VERSION}","licenseMode":"Apache-2.0","runtimeFile":"${RUNTIME_FILE}"}
 JSON
-cat > "${OUTPUT}/cmake/OpenSSLConfig.cmake" <<CMAKE
+cat > "${STAGE_ROOT}/cmake/OpenSSLConfig.cmake" <<CMAKE
 get_filename_component(_openssl_root "\${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 if(NOT TARGET OpenSSL::Crypto)
   add_library(OpenSSL::Crypto SHARED IMPORTED)
@@ -75,11 +75,11 @@ ${CMAKE_IMPLIB}
     INTERFACE_INCLUDE_DIRECTORIES "\${_openssl_root}/include")
 endif()
 set(OpenSSL_VERSION "${OPENSSL_VERSION}")
-set(OpenSSL_RUNTIME_DIR "\${_openssl_root}/$( [[ "${PLATFORM}" == "macos" ]] && printf lib || printf bin )")
+set(OpenSSL_RUNTIME_DIR "\${_openssl_root}/$( [[ "${SDK_OS}" == "macos" ]] && printf lib || printf bin )")
 set(OpenSSL_LICENSE_DIR "\${_openssl_root}/licenses")
 set(OpenSSL_MANIFEST_FILE "\${_openssl_root}/manifest.json")
 CMAKE
-cat > "${OUTPUT}/cmake/OpenSSLConfigVersion.cmake" <<CMAKE
+cat > "${STAGE_ROOT}/cmake/OpenSSLConfigVersion.cmake" <<CMAKE
 set(PACKAGE_VERSION "${OPENSSL_VERSION}")
 if(PACKAGE_FIND_VERSION VERSION_EQUAL PACKAGE_VERSION)
   set(PACKAGE_VERSION_COMPATIBLE TRUE)
